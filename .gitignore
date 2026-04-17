@@ -209,6 +209,8 @@ __marimo__/
 # mp4
 *.mp4
 
+.claude/*
+
 cache/
 .idea/*
 trimmed_manhattan_shape/trimmed_manhattan.cpg
@@ -216,3 +218,4 @@ trimmed_manhattan_shape/trimmed_manhattan.dbf
 trimmed_manhattan_shape/trimmed_manhattan.prj
 trimmed_manhattan_shape/trimmed_manhattan.shp
 trimmed_manhattan_shape/trimmed_manhattan.shx
+.DS_Store
