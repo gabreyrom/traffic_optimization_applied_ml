@@ -1,0 +1,49 @@
+network:
+  shapefile_path: ../trimmed_manhattan_shape/trimmed_manhattan.shp
+  seed: 26
+  od_mode: fixed
+  # Optional: if omitted and od_mode=fixed, the pipeline samples one OD pair from the network.
+  # fixed_od:
+  #   - [982020.0, 220510.0]
+  #   - [987410.0, 198740.0]
+
+experiment:
+  num_agents: 1000
+  num_agents_expert: null
+  num_episodes_rl: 20
+  horizon_s: 3600.0
+  steps_per_agent: 1000
+  alpha: 0.12
+  gamma: 0.97
+  temp_start: 2.0
+  temp_end: 0.05
+  temperature: 1.0
+  lambda_live_cost: 30.0
+  visited_penalty_val: 25.0
+  tau: 0.03
+  visited_penalty_train: 0.02
+  lambda_time_train: 1.0
+  time_scale_s: 400.0
+  t_cap_s: 1200.0
+  lambda_dr: 10.0
+  lambda_prog: 20.0
+  lambda_exp: 0.30
+  lambda_step: 0.0
+  time_scale: 500.0
+  lambda_term: 2500.0
+  lambda_miss: 500.0
+  debug: true
+
+artifacts:
+  output_dir: outputs
+  save_routes_plot: true
+  save_heatmap_plot: true
+  save_animation_mp4: true
+  save_animation_gif: false
+  animation_frames: 80
+  animation_fps: 8
+
+logging:
+  level: INFO
+  logger_name: traffic_opt
+

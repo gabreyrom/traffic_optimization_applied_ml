@@ -16,11 +16,12 @@ Three algorithms are compared:
 ## The Network
 
 - **Graph**: Manhattan street network loaded from a shapefile (`trimmed_manhattan_shape/`).
-- **Nodes**: Intersections represented as `(longitude, latitude)` tuples.
+- **Nodes**: Intersections represented as projected `(x, y)` tuples (after CRS projection).
 - **Edges**: Street segments with attributes:
   - `length_m` — physical length in meters
   - `v_free` — free-flow speed (m/s)
-  - `capacity` — vehicles per hour (vph)
+  - `flow_cap_vph` — throughput capacity in vehicles per hour (vph)
+  - `storage_cap` — physical storage capacity estimate (vehicles, diagnostic only in static assignment)
   - `free_time = length_m / v_free` — free-flow travel time (seconds)
 - **Travel time (BPR function)**:
   ```
@@ -58,7 +59,7 @@ Results are reported in **vehicle-hours** (`G / 3600`).
    marginal_cost(e) = G_e(count + 1) - G_e(count)
    ```
    This is how much one more vehicle on edge `e` *increases total system delay*.
-2. A soft storage penalty is added to penalize over-capacity edges.
+2. Static FF assignment now uses marginal BPR system cost only (no storage-cap occupancy penalty), because `edge_counts` are cumulative demand counts, not time-indexed queue occupancy.
 3. Result: near-socially-optimal assignment. Used as the **expert** for RL training.
 
 ---
@@ -138,6 +139,8 @@ Q(s,d,a) ← Q(s,d,a) + α × [R + γ × max_a' Q(s',d,a') - Q(s,d,a)]
    └─ Compute G, reachability, travel times
 ```
 
+`od_mode="fixed"` now requires an explicit `fixed_od=(origin, destination)` argument through the pipeline functions.
+
 ---
 
 ## Key Design Decisions
@@ -163,6 +166,9 @@ The progress reward uses shortest-path distance to destination. Per-episode, thi
 ### Quality-Weighted Expert Bonus
 Rather than a binary `1 if expert edge else 0`, the expert bonus is `λ_exp × quality_score` where `quality_score ∈ [0,1]` is derived from the expert edge's marginal cost at FF execution time. High-quality expert edges (low marginal cost = good system choice) get the full bonus; lower-quality edges get a proportionally reduced bonus.
 
+### Reproducibility Defaults
+Notebook runs seed both RNGs (`random` and `numpy`) before any network speed sampling or OD sampling, so repeated runs are deterministic under the same inputs.
+
 ---
 
 ## Files
@@ -170,10 +176,27 @@ Rather than a binary `1 if expert edge else 0`, the expert bonus is `λ_exp × q
 | File | Description |
 |------|-------------|
 | `coin/traffic_opt_base_case.ipynb` | Main notebook: SPA vs FF vs FF-RL on fixed OD pair |
-| `coin/traffic_opt_coin_100/1000/3000.ipynb` | Scaled runs with 100/1000/3000 agents |
+| `coin/config.100.yaml` | Preset config for 100-agent runs |
+| `coin/config.1000.yaml` | Preset config for 1000-agent runs |
+| `coin/config.3000.yaml` | Preset config for 3000-agent runs |
+| `coin/run_base_case_experiment.py` | One-command YAML runner (`--config`) |
 | `coin/traffic_opt_complete.ipynb` | Complete experiment suite |
 | `trimmed_manhattan_shape/` | Street network shapefile |
 | `past_intents/` | Earlier versions of the algorithm |
+
+---
+
+## Config Presets
+
+Run from the `coin/` directory:
+
+```bash
+python run_base_case_experiment.py --config config.100.yaml
+python run_base_case_experiment.py --config config.1000.yaml
+python run_base_case_experiment.py --config config.3000.yaml
+```
+
+Each preset writes outputs to a separate folder under `outputs/agents_*`.
 
 ---
 
@@ -183,7 +206,7 @@ Rather than a binary `1 if expert edge else 0`, the expert bonus is `λ_exp × q
 |--------|-------------|
 | `fraction_reached` | Fraction of agents that reached their destination |
 | `G` (veh-hours) | Total system travel time — the main optimization target |
-| `avg_travel_time` | Mean per-agent BPR travel time |
+| `avg_travel_time` | Mean experienced per-agent travel time recorded during routing (with fallback to post-hoc estimate) |
 | `total_distance_km` | Total km traveled across all agents |
 
 A good FF-RL run should satisfy:
