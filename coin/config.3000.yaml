@@ -1,5 +1,5 @@
 network:
-  shapefile_path: ../trimmed_manhattan_shape/trimmed_manhattan.shp
+  shapefile_path: ./trimmed_manhattan_shape/trimmed_manhattan.shp
   seed: 26
   od_mode: fixed
 

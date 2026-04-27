@@ -113,6 +113,13 @@ class TrafficOptimizationPipeline:
             time_scale=e.time_scale,
             lambda_term=e.lambda_term,
             lambda_miss=e.lambda_miss,
+            early_stop_enabled=e.early_stop_enabled,
+            early_stop_patience=e.early_stop_patience,
+            early_stop_min_delta=e.early_stop_min_delta,
+            early_stop_min_episodes=e.early_stop_min_episodes,
+            early_stop_target_reach=e.early_stop_target_reach,
+            early_stop_low_reach_threshold=e.early_stop_low_reach_threshold,
+            early_stop_stagnation_window=e.early_stop_stagnation_window,
             num_agents_baseline=e.num_agents,
             num_agents_expert=num_agents_expert,
             num_agents_eval_rl=e.num_agents,
@@ -246,4 +253,3 @@ class TrafficOptimizationPipeline:
         run = self.run_experiment()
         artifacts = self.save_artifacts(run)
         return PipelineOutput(experiment=run, artifacts=artifacts)
-

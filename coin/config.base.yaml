@@ -1,5 +1,5 @@
 network:
-  shapefile_path: ../trimmed_manhattan_shape/trimmed_manhattan.shp
+  shapefile_path: ./trimmed_manhattan_shape/trimmed_manhattan.shp
   seed: 26
   od_mode: fixed
   # Optional: if omitted and od_mode=fixed, the pipeline samples one OD pair from the network.
@@ -32,6 +32,13 @@ experiment:
   time_scale: 500.0
   lambda_term: 2500.0
   lambda_miss: 500.0
+  early_stop_enabled: true
+  early_stop_patience: 6
+  early_stop_min_delta: 0.0001
+  early_stop_min_episodes: 5
+  early_stop_target_reach: null
+  early_stop_low_reach_threshold: 0.01
+  early_stop_stagnation_window: 4
   debug: true
 
 artifacts:
@@ -46,4 +53,3 @@ artifacts:
 logging:
   level: INFO
   logger_name: traffic_opt
-

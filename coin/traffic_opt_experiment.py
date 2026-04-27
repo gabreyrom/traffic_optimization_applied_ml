@@ -616,6 +616,13 @@ def q_learning_train_true_coin_from_ff_expert(
     refresh_sp_every: int = 1,
     refresh_expert_every: int = 0,
     num_agents_expert_refresh: int = 100,
+    early_stop_enabled: bool = False,
+    early_stop_patience: int = 8,
+    early_stop_min_delta: float = 1e-4,
+    early_stop_min_episodes: int = 5,
+    early_stop_target_reach: Optional[float] = None,
+    early_stop_low_reach_threshold: float = 0.01,
+    early_stop_stagnation_window: int = 5,
 ) -> Dict[Tuple[Node, Node, Node], float]:
     q_table: Dict[Tuple[Node, Node, Node], float] = {}
     quality = expert_edge_quality if expert_edge_quality is not None else {}
@@ -707,6 +714,9 @@ def q_learning_train_true_coin_from_ff_expert(
     expert_steps_mut = list(expert_steps)
     expert_ids = set(expert_edge_ids)
     expert_qual = dict(quality)
+    best_reach = -1.0
+    no_improve_episodes = 0
+    recent_total_steps: deque[int] = deque(maxlen=max(early_stop_stagnation_window, 1))
 
     for (s, d, a, edge_id) in expert_steps_mut:
         edge = network.edges[edge_id]
@@ -752,6 +762,7 @@ def q_learning_train_true_coin_from_ff_expert(
         agents = sample_agents_for_mode(num_agents_per_episode)
         total_reward = 0.0
         total_steps = 0
+        reached_agents = 0
         dbg = RewardDebug(enabled=debug_rewards)
 
         for agent in agents:
@@ -813,6 +824,8 @@ def q_learning_train_true_coin_from_ff_expert(
                 dbg.add(total=reward, dr=dr, prog=lambda_prog * prog, exp=exp_bon, step=-lambda_step, time=time_pen, delta_G=delta_g)
                 total_reward += reward
                 s = s_next
+            if s == d:
+                reached_agents += 1
 
         if len(replay) >= replay_min:
             batch = replay.sample(replay_batch)
@@ -831,8 +844,44 @@ def q_learning_train_true_coin_from_ff_expert(
         if debug_rewards:
             avg_r = total_reward / max(total_steps, 1)
             avg_steps = total_steps / max(len(agents), 1)
-            print(f"[TRUE-COIN+Expert] Ep {ep + 1}/{num_episodes}: temp={temp:.3f}, avg_r/step={avg_r:.4f}, avg_steps={avg_steps:.1f}")
+            reach_rate = reached_agents / max(len(agents), 1)
+            print(
+                f"[TRUE-COIN+Expert] Ep {ep + 1}/{num_episodes}: "
+                f"temp={temp:.3f}, avg_r/step={avg_r:.4f}, avg_steps={avg_steps:.1f}, reach={reach_rate:.4f}"
+            )
             dbg.summary(name=f"Episode {ep + 1} reward breakdown")
+
+        reach_rate = reached_agents / max(len(agents), 1)
+        if reach_rate > best_reach + early_stop_min_delta:
+            best_reach = reach_rate
+            no_improve_episodes = 0
+        else:
+            no_improve_episodes += 1
+        recent_total_steps.append(total_steps)
+
+        if early_stop_enabled and (ep + 1) >= early_stop_min_episodes:
+            if early_stop_target_reach is not None and reach_rate >= early_stop_target_reach:
+                print(
+                    f"[EARLY-STOP] target reach met at episode {ep + 1}: "
+                    f"reach={reach_rate:.4f} >= {early_stop_target_reach:.4f}"
+                )
+                break
+
+            stagnant_steps = (
+                len(recent_total_steps) == recent_total_steps.maxlen
+                and (max(recent_total_steps) - min(recent_total_steps) <= 1)
+            )
+            low_reach = reach_rate <= early_stop_low_reach_threshold
+            plateau = no_improve_episodes >= early_stop_patience
+
+            if plateau and (low_reach or stagnant_steps):
+                reason = "low reach plateau" if low_reach else "stagnant training steps plateau"
+                print(
+                    f"[EARLY-STOP] {reason} at episode {ep + 1}: "
+                    f"reach={reach_rate:.4f}, no_improve={no_improve_episodes}, "
+                    f"recent_total_steps={list(recent_total_steps)}"
+                )
+                break
 
     return q_table
 
@@ -1013,6 +1062,13 @@ def run_ff_expert_coin_rl_experiment(
     refresh_sp_every: int = 1,
     refresh_expert_every: int = 0,
     num_agents_expert_refresh: int = 100,
+    early_stop_enabled: bool = False,
+    early_stop_patience: int = 8,
+    early_stop_min_delta: float = 1e-4,
+    early_stop_min_episodes: int = 5,
+    early_stop_target_reach: Optional[float] = None,
+    early_stop_low_reach_threshold: float = 0.01,
+    early_stop_stagnation_window: int = 5,
     debug: bool = True,
 ):
     agents_spa, flows_spa, g_spa = run_spa_experiment(
@@ -1061,6 +1117,13 @@ def run_ff_expert_coin_rl_experiment(
         refresh_sp_every=refresh_sp_every,
         refresh_expert_every=refresh_expert_every,
         num_agents_expert_refresh=num_agents_expert_refresh,
+        early_stop_enabled=early_stop_enabled,
+        early_stop_patience=early_stop_patience,
+        early_stop_min_delta=early_stop_min_delta,
+        early_stop_min_episodes=early_stop_min_episodes,
+        early_stop_target_reach=early_stop_target_reach,
+        early_stop_low_reach_threshold=early_stop_low_reach_threshold,
+        early_stop_stagnation_window=early_stop_stagnation_window,
     )
     agents_ff_rl, flows_ff_rl, g_ff_rl = route_with_trained_Q_flow_adaptive_softmax(
         network=network,
@@ -1624,4 +1687,3 @@ class TrafficOptimizationExperiment:
             "animation_mp4": str(anim_mp4),
             "animation_gif": str(anim_gif) if save_gif else None,
         }
-

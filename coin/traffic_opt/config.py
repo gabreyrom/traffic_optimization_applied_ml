@@ -42,6 +42,13 @@ class ExperimentConfig:
     time_scale: float = 500.0
     lambda_term: float = 2500.0
     lambda_miss: float = 500.0
+    early_stop_enabled: bool = True
+    early_stop_patience: int = 6
+    early_stop_min_delta: float = 1e-4
+    early_stop_min_episodes: int = 5
+    early_stop_target_reach: Optional[float] = None
+    early_stop_low_reach_threshold: float = 0.01
+    early_stop_stagnation_window: int = 4
     debug: bool = True
 
 
@@ -112,4 +119,3 @@ def load_config_yaml(path: str | Path) -> AppConfig:
     if not isinstance(raw, dict):
         raise ValueError("config.yaml root must be a mapping/object")
     return app_config_from_dict(raw)
-
